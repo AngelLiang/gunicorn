@@ -13,12 +13,12 @@ class HttpParserError(Exception):
 class HttpParser(object):
     
     def __init__(self):
-        self.status = ""
-        self.headers = []
-        self.headers_dict = {}
-        self.raw_version = "HTTP/1.0"
+        self.status = ""                # 状态
+        self.headers = []               # HTTP头部 type: list
+        self.headers_dict = {}          # HTTP头部 type: dict
+        self.raw_version = "HTTP/1.0"   # HTTP版本 type: str
         self.raw_path = ""
-        self.version = (1,0)
+        self.version = (1,0)            # HTTP版本 type: tuple
         self.method = ""
         self.path = ""
         self.query_string = ""
@@ -37,25 +37,30 @@ class HttpParser(object):
         if self.headers:
             return self.headers
         
+        # 检查"\r\n\r\n"，不存在则返回-1
         ld = len("\r\n\r\n")
         i = buf.find("\r\n\r\n")
         if i != -1:
             if i > 0:
                 r = buf[:i]
-            pos = i+ld
+            pos = i+ld  # 定位
             return self.finalize_headers(headers, r, pos)
         return -1
         
     def finalize_headers(self, headers, headers_str, pos):
         """ parse the headers """
+
+        # 把 HTTP request 用 "\r\n" 切割成list
         lines = headers_str.split("\r\n")
                 
         # parse first line of headers
+        # 获取请求行
         self._first_line(lines.pop(0))
         
         # parse headers. We silently ignore 
         # bad headers' lines
         
+        # 获取请求头，并转换为字典
         _headers = {}
         hname = ""
         for line in lines:
@@ -70,15 +75,22 @@ class HttpParser(object):
         self.headers_dict = _headers
         headers.extend(list(_headers.items()))
         self.headers = headers
+        # 提取长度变量，单独存放
         self._content_len = int(_headers.get('Content-Length',0))
         (_, _, self.path, self.query_string, self.fragment) = urlparse.urlsplit(self.raw_path)
         return pos
     
     def _first_line(self, line):
         """ parse first line """
+        """
+        解析HTTP请求行，比如
+        ```
+        GET /hello HTTP/1.0
+        ```
+        """
         self.status = status = line.strip()
         
-        method, path, version = status.split(" ")
+        method, path, version = status.split(" ")   # 获取方法、路径和HTTP版本
         version = version.strip()
         self.raw_version = version
         try:
@@ -88,7 +100,7 @@ class HttpParser(object):
             version = (1, 0)
 
         self.version = version
-        self.method = method.upper()
+        self.method = method.upper()    # method转换为大写字母
         self.raw_path = path
         
     def _parse_headerl(self, hdrs, line):
@@ -100,6 +112,9 @@ class HttpParser(object):
       
     @property
     def should_close(self):
+        """
+        通过检查 self.headers_dict:dict 来判断是否需要close
+        """
         if self._should_close:
             return True
         if self.headers_dict.get("Connection") == "close":

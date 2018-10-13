@@ -44,15 +44,19 @@ class HttpRequest(object):
 
 
     def __init__(self, socket, client_address, server_address):
+        # 网络信息
         self.socket = socket
         self.client_address = client_address
         self.server_address = server_address
-        self.response_status = None
-        self.response_headers = {}
+        
+        # 以下两个用于存放HTTP response 信息
+        self.response_status = None     # HTTP响应状态码
+        self.response_headers = {}      # HTTP响应头部
+
         self._version = 11
-        self.parser = HttpParser()
+        self.parser = HttpParser()      # HTTP解析器
         self.start_response_called = False
-        self.log = logging.getLogger(__name__)
+        self.log = logging.getLogger(__name__)  # 日志
         
         
     def read(self):
@@ -82,7 +86,9 @@ class HttpRequest(object):
         else:
             wsgi_input = TeeInput(self.socket, self.parser, buf[i:])
                 
+        # 环境变量
         environ = {
+            # wsgi
             "wsgi.url_scheme": 'http',
             "wsgi.input": wsgi_input,
             "wsgi.errors": sys.stderr,
@@ -90,6 +96,7 @@ class HttpRequest(object):
             "wsgi.multithread": False,
             "wsgi.multiprocess": True,
             "wsgi.run_once": False,
+
             "SCRIPT_NAME": "",
             "SERVER_SOFTWARE": self.SERVER_VERSION,
             "REQUEST_METHOD": self.parser.method,
@@ -98,8 +105,10 @@ class HttpRequest(object):
             "RAW_URI": self.parser.raw_path,
             "CONTENT_TYPE": self.parser.headers_dict.get('Content-Type', ''),
             "CONTENT_LENGTH": str(wsgi_input.len),
+            # REMOTE INFO
             "REMOTE_ADDR": self.client_address[0],
             "REMOTE_PORT": self.client_address[1],
+            # SERVER INFO
             "SERVER_NAME": self.server_address[0],
             "SERVER_PORT": self.server_address[1],
             "SERVER_PROTOCOL": self.parser.raw_version
